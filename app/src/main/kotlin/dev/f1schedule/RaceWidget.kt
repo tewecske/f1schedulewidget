@@ -125,10 +125,21 @@ class RaceWidget : AppWidgetProvider() {
 
         private fun state(ctx: Context) = ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE)
 
-        /** Background colour (ARGB) of a widget. */
-        fun background(ctx: Context, id: Int) = state(ctx).getInt("bg_$id", DEFAULT_BG)
+        /** Background colour (ARGB) of a widget, or the default for all widgets when [id] is invalid. */
+        fun background(ctx: Context, id: Int): Int {
+            val default = state(ctx).getInt("bg_default", DEFAULT_BG)
+            return if (id == AppWidgetManager.INVALID_APPWIDGET_ID) default else state(ctx).getInt("bg_$id", default)
+        }
 
-        fun setBackground(ctx: Context, id: Int, argb: Int) = state(ctx).edit().putInt("bg_$id", argb).apply()
+        /** Sets one widget's background, or the default for all widgets (dropping their own) when [id] is invalid. */
+        fun setBackground(ctx: Context, id: Int, argb: Int) {
+            val s = state(ctx)
+            if (id != AppWidgetManager.INVALID_APPWIDGET_ID) return s.edit().putInt("bg_$id", argb).apply()
+            s.edit().apply {
+                s.all.keys.filter { it.startsWith("bg_") }.forEach(::remove)
+                putInt("bg_default", argb)
+            }.apply()
+        }
 
         /** Text colours: primary, secondary, finished. */
         class Palette(val text: Int, val sub: Int, val done: Int)

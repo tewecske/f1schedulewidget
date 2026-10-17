@@ -17,7 +17,10 @@ import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 
-/** Per-widget settings, opened from the widget's long-press menu: background colour and opacity. */
+/**
+ * Background colour and opacity. From the widget's long-press menu (pencil) it edits that widget;
+ * from the app drawer, which works on every launcher, it edits all widgets.
+ */
 class SettingsActivity : Activity() {
     private var id = AppWidgetManager.INVALID_APPWIDGET_ID
     private var rgb = 0
@@ -30,7 +33,7 @@ class SettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-        if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return finish()
+        setTitle(R.string.settings)
         // Before Android 12 this opens when the widget is added; backing out still keeps the widget.
         setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id))
 
