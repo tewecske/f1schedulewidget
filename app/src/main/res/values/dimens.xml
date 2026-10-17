@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared with the fitting code in RaceWidget. -->
+<resources>
+    <dimen name="arrow_width">26dp</dimen>
+    <dimen name="pad_vertical">6dp</dimen>
+    <dimen name="header_gap">3dp</dimen>
+    <dimen name="footer_gap">4dp</dimen>
+    <dimen name="row_gap">1dp</dimen>
+    <dimen name="col_gap">12dp</dimen>
+</resources>

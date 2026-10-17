@@ -8,6 +8,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.content.res.Resources
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.text.format.DateFormat
@@ -105,8 +108,13 @@ class RaceWidget : AppWidgetProvider() {
         private const val SUB = 12f
         private const val ROW = 13f
         private const val FOOT = 11f
-        private const val ARROW = 22f
-        private const val LINE = 1.3f // line height / text size, measured on Roboto
+        // Must match dimens.xml.
+        private const val ARROW_W = 26f
+        private const val PAD_V = 6f
+        private const val HEADER_GAP = 3f
+        private const val FOOTER_GAP = 4f
+        private const val ROW_GAP = 1f
+        private const val COL_GAP = 12f
         private const val SIZE_FUDGE = 0.85f
         private const val MAX_ROWS = 5 // sessions in a weekend
         private const val MIN_SCALE = 0.6f
@@ -161,17 +169,17 @@ class RaceWidget : AppWidgetProvider() {
                 if (DateFormat.is24HourFormat(ctx)) "EEE  HH:mm" else "EEE  h:mm a", locale,
             )
             // Size for the largest weekend rather than what's shown, so text doesn't jump between races.
-            val sample = ZonedDateTime.of(2000, 1, 1, 23, 0, 0, 0, ZoneId.systemDefault()).format(timeFmt).length
-            val fit = fit(ctx, mgr, id, sample)
-            // Compact has no toggle, so it always shows local time.
-            val track = !fit.compact && state.getBoolean("track_$id", false)
+            val samples = (1..7).map { ZonedDateTime.of(2001, 1, it, 22, 59, 0, 0, ZoneId.systemDefault()).format(timeFmt) }
+            val fit = fit(mgr, id, samples)
+            // Without the footer there's no toggle, so show local time.
+            val track = fit.footer && state.getBoolean("track_$id", false)
             val zone = if (track) race.trackZone else ZoneId.systemDefault()
 
             v.setTextViewText(R.id.title, race.name)
             v.setOnClickPendingIntent(R.id.prev, broadcast(ctx, ACTION_PREV, id))
             v.setOnClickPendingIntent(R.id.next, broadcast(ctx, ACTION_NEXT, id))
-            v.setTextColor(R.id.prev, if (index > 0) WHITE else DONE)
-            v.setTextColor(R.id.next, if (index < races.lastIndex) WHITE else DONE)
+            v.setInt(R.id.prev_icon, "setColorFilter", if (index > 0) WHITE else DONE)
+            v.setInt(R.id.next_icon, "setColorFilter", if (index < races.lastIndex) WHITE else DONE)
 
             val dayFmt = DateTimeFormatter.ofPattern("d MMM", locale)
             val first = race.sessions.first().start.atZone(zone)
@@ -188,8 +196,8 @@ class RaceWidget : AppWidgetProvider() {
             // Finished race: top 3 of qualifying (left) and race (right), once published.
             val podium = if (race.end <= now) Schedule.podium(ctx, race).also { if (it == null) missing += race } else null
             val rows = if (podium != null) {
-                fun label(d: Driver) = if (fit.compact) d.code else d.name
-                listOf(Row(if (fit.compact) "Quali" else "Qualifying", "Race", GREY, GREY)) + (0 until 3).map { i ->
+                fun label(d: Driver) = if (fit.short) d.code else d.name
+                listOf(Row(if (fit.short) "Quali" else "Qualifying", "Race", GREY, GREY)) + (0 until 3).map { i ->
                     Row(
                         podium.quali.getOrNull(i)?.let { "${i + 1}  ${label(it)}" } ?: "",
                         podium.race.getOrNull(i)?.let { "${label(it)}  ${i + 1}" } ?: "",
@@ -205,7 +213,7 @@ class RaceWidget : AppWidgetProvider() {
                     val time = if (s.hasTime) t.format(timeFmt) else "${t.format(dayOnly)}  TBC"
                     val done = s.end <= now
                     Row(
-                        if (fit.compact) s.short else s.name, time,
+                        if (fit.short) s.short else s.name, time,
                         if (i == current) RED else if (done) DONE else WHITE,
                         if (i == current) RED else if (done) DONE else GREY,
                     )
@@ -225,57 +233,61 @@ class RaceWidget : AppWidgetProvider() {
             }
 
             // Unusually long names may still need smaller text than the reference.
-            val chars = rows.maxOf { it.left.length + it.right.length }
-            val scale = if (chars > fit.chars) fit.scale * fit.chars / chars else fit.scale
-            apply(ctx, v, fit, scale.coerceAtLeast(MIN_SCALE))
+            val widest = rows.maxOf { Measure.row(it.left, it.right) }
+            apply(v, fit, minOf(fit.scale, fit.rowWidth / widest).coerceAtLeast(MIN_SCALE))
             return v
         }
 
-        /** Layout choice for a widget size: full or compact, text scale, and whether the circuit line fits. */
-        private class Fit(val compact: Boolean, val scale: Float, val showCircuit: Boolean, val chars: Int)
+        /** What a widget size shows: short names?, optional lines, and the text scale. */
+        private class Fit(
+            val short: Boolean, val footer: Boolean, val place: Boolean, val circuit: Boolean,
+            val scale: Float, val rowWidth: Float, // dp available for a row's text
+        )
 
-        private fun fit(ctx: Context, mgr: AppWidgetManager, id: Int, timeChars: Int): Fit {
+        /**
+         * Measures the content at scale 1 and picks the largest text that fits. Sessions come first;
+         * then the footer, location and circuit lines are added in that order while they don't
+         * shrink the text (below normal size on big widgets).
+         */
+        private fun fit(mgr: AppWidgetManager, id: Int, timeSamples: List<String>): Fit {
             val o = mgr.getAppWidgetOptions(id)
-            val landscape = ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            val landscape = Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             // Launchers report the cell area; the widget itself gets less (Pixel: 360x358 reported, 316x300 real).
             val w = SIZE_FUDGE * o.getInt(if (landscape) AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
             val h = SIZE_FUDGE * o.getInt(if (landscape) AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
-            val fullChars = "Sprint Qualifying".length + timeChars
-            if (w <= 0 || h <= 0) return Fit(false, 1f, true, fullChars)
+            val rowWidth = w - 2 * ARROW_W - COL_GAP
+            if (w <= 0 || h <= 0) return Fit(false, true, true, true, 1f, Float.MAX_VALUE)
 
-            fun scale(compact: Boolean, subLines: Int, chars: Int): Float {
-                // padding, header margin, row gaps, footer (compact: tighter padding, no gaps or footer)
-                val fixedH = if (compact) 12f + 6f else 24f + 6f + 3f * MAX_ROWS + 6f
-                val lines = TITLE + SUB * subLines + ROW * MAX_ROWS + if (compact) 0f else FOOT
-                val byHeight = (h - fixedH) / (LINE * lines)
-                val byWidth = (w - 40f) / (ROW * 0.55f * chars)
-                return minOf(byHeight, byWidth)
+            val time = timeSamples.maxOf { Measure.width(it, ROW, medium = true) }
+            fun byWidth(short: Boolean) = rowWidth / (Schedule.SESSION_NAMES.maxOf { Measure.width(if (short) it.second else it.first, ROW) } + time)
+            fun byHeight(footer: Boolean, place: Boolean, circuit: Boolean): Float {
+                var fixed = 2 * PAD_V + HEADER_GAP + MAX_ROWS * ROW_GAP
+                var text = Measure.line(TITLE, medium = true) + MAX_ROWS * Measure.line(ROW)
+                if (footer) { fixed += FOOTER_GAP; text += Measure.line(FOOT) }
+                if (place) text += Measure.line(SUB)
+                if (circuit) text += Measure.line(SUB)
+                return (h - fixed) / text
             }
 
-            val withCircuit = scale(false, 2, fullChars)
-            val without = scale(false, 1, fullChars)
-            return when {
-                withCircuit >= 0.9f -> Fit(false, withCircuit.coerceAtMost(MAX_SCALE), true, fullChars)
-                // Hiding the circuit line only helps when height is the limit.
-                without >= 0.8f -> Fit(false, without.coerceAtMost(MAX_SCALE), withCircuit >= without, fullChars)
-                else -> {
-                    val chars = "Sprint".length + timeChars
-                    Fit(true, scale(true, 0, chars).coerceIn(MIN_SCALE, MAX_SCALE), false, chars)
-                }
-            }
+            val base = byHeight(false, false, false)
+            val full = byWidth(false)
+            val shortW = byWidth(true)
+            // Full names unless they'd make the text noticeably smaller than normal (or than height allows).
+            val short = full < 0.85f * minOf(shortW, base, 1f)
+            val width = if (short) shortW else full
+            val goal = minOf(width, base, MAX_SCALE, 1f) * 0.98f
+            fun scale(f: Boolean, p: Boolean, c: Boolean) = minOf(width, byHeight(f, p, c), MAX_SCALE)
+            val footer = scale(true, false, false) >= goal
+            val place = footer && scale(true, true, false) >= goal
+            val circuit = place && scale(true, true, true) >= goal
+            return Fit(short, footer, place, circuit, scale(footer, place, circuit).coerceAtLeast(MIN_SCALE), rowWidth)
         }
 
-        private fun apply(ctx: Context, v: RemoteViews, fit: Fit, s: Float) {
-            val full = if (fit.compact) View.GONE else View.VISIBLE
-            v.setViewVisibility(R.id.place, full)
-            v.setViewVisibility(R.id.footer, full)
-            v.setViewVisibility(R.id.circuit, if (fit.showCircuit) View.VISIBLE else View.GONE)
-
-            val dp = ctx.resources.displayMetrics.density
-            fun px(value: Int) = (value * dp).toInt()
-            if (fit.compact) v.setViewPadding(R.id.root, px(4), px(6), px(4), px(6))
-            else v.setViewPadding(R.id.root, px(6), px(12), px(6), px(12))
-            ROWS.forEach { v.setViewPadding(it, 0, if (fit.compact) 0 else px(3), 0, 0) }
+        private fun apply(v: RemoteViews, fit: Fit, s: Float) {
+            fun show(view: Int, on: Boolean) = v.setViewVisibility(view, if (on) View.VISIBLE else View.GONE)
+            show(R.id.footer, fit.footer)
+            show(R.id.place, fit.place)
+            show(R.id.circuit, fit.circuit)
 
             fun size(view: Int, base: Float) = v.setTextViewTextSize(view, TypedValue.COMPLEX_UNIT_DIP, base * s)
             size(R.id.title, TITLE)
@@ -283,10 +295,19 @@ class RaceWidget : AppWidgetProvider() {
             size(R.id.place, SUB)
             size(R.id.mode, FOOT)
             size(R.id.round, FOOT)
-            size(R.id.prev, ARROW)
-            size(R.id.next, ARROW)
             NAMES.forEach { size(it, ROW) }
             TIMES.forEach { size(it, ROW) }
+        }
+
+        /** Text metrics in dp, matching the layout's fonts (TextViews have no font padding). */
+        private object Measure {
+            private val regular = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create("sans-serif", Typeface.NORMAL) }
+            private val medium = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+
+            private fun paint(size: Float, medium: Boolean) = (if (medium) this.medium else regular).apply { textSize = size }
+            fun width(text: String, size: Float, medium: Boolean = false) = paint(size, medium).measureText(text)
+            fun line(size: Float, medium: Boolean = false) = paint(size, medium).fontMetrics.let { it.descent - it.ascent }
+            fun row(left: String, right: String) = width(left, ROW) + width(right, ROW, medium = true)
         }
 
         private class Row(val left: String, val right: String, val leftColor: Int, val rightColor: Int)
