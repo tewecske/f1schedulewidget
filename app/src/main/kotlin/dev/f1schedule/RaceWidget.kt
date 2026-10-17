@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
@@ -63,7 +64,7 @@ class RaceWidget : AppWidgetProvider() {
     }
 
     override fun onDeleted(ctx: Context, ids: IntArray) {
-        state(ctx).edit().apply { ids.forEach { remove("off_$it"); remove("track_$it") } }.apply()
+        state(ctx).edit().apply { ids.forEach { remove("off_$it"); remove("track_$it"); remove("bg_$it") } }.apply()
     }
 
     override fun onDisabled(ctx: Context) {
@@ -98,10 +99,8 @@ class RaceWidget : AppWidgetProvider() {
         private const val ACTION_TICK = "dev.f1schedule.TICK"
         private const val RESET_AFTER_MS = 3 * 60_000L
 
-        private const val WHITE = 0xFFFFFFFF.toInt()
-        private const val GREY = 0xFF9A9A9A.toInt()
-        private const val DONE = 0xFF555555.toInt()
         private const val RED = 0xFFFF2800.toInt()
+        const val DEFAULT_BG = 0xEB141414.toInt()
 
         // Text sizes (dp) at scale 1; must match the layout.
         private const val TITLE = 16f
@@ -126,6 +125,21 @@ class RaceWidget : AppWidgetProvider() {
 
         private fun state(ctx: Context) = ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE)
 
+        /** Background colour (ARGB) of a widget. */
+        fun background(ctx: Context, id: Int) = state(ctx).getInt("bg_$id", DEFAULT_BG)
+
+        fun setBackground(ctx: Context, id: Int, argb: Int) = state(ctx).edit().putInt("bg_$id", argb).apply()
+
+        /** Text colours: primary, secondary, finished. */
+        class Palette(val text: Int, val sub: Int, val done: Int)
+
+        /** Dark text on light, mostly opaque backgrounds; light text otherwise. */
+        fun palette(argb: Int): Palette {
+            val lum = (0.2126 * Color.red(argb) + 0.7152 * Color.green(argb) + 0.0722 * Color.blue(argb)) / 255
+            return if (lum > 0.55 && Color.alpha(argb) >= 0x80) Palette(0xFF141414.toInt(), 0xFF5C5C5C.toInt(), 0xFFADADAD.toInt())
+            else Palette(0xFFFFFFFF.toInt(), 0xFF9A9A9A.toInt(), 0xFF555555.toInt())
+        }
+
         /** Updates all widgets; returns shown finished races whose results aren't cached yet. */
         fun render(ctx: Context): List<Race> {
             val mgr = AppWidgetManager.getInstance(ctx)
@@ -146,6 +160,12 @@ class RaceWidget : AppWidgetProvider() {
         ): RemoteViews {
             val v = RemoteViews(ctx.packageName, R.layout.widget)
             v.setOnClickPendingIntent(R.id.header, broadcast(ctx, ACTION_HOME, id))
+            val bg = background(ctx, id)
+            val p = palette(bg)
+            v.setInt(R.id.bg, "setColorFilter", bg or 0xFF000000.toInt())
+            v.setInt(R.id.bg, "setImageAlpha", Color.alpha(bg))
+            v.setTextColor(R.id.title, p.text)
+            listOf(R.id.circuit, R.id.place, R.id.mode).forEach { v.setTextColor(it, p.sub) }
 
             if (races.isEmpty()) {
                 v.setTextViewText(R.id.title, "No schedule yet")
@@ -178,8 +198,8 @@ class RaceWidget : AppWidgetProvider() {
             v.setTextViewText(R.id.title, race.name)
             v.setOnClickPendingIntent(R.id.prev, broadcast(ctx, ACTION_PREV, id))
             v.setOnClickPendingIntent(R.id.next, broadcast(ctx, ACTION_NEXT, id))
-            v.setInt(R.id.prev_icon, "setColorFilter", if (index > 0) WHITE else DONE)
-            v.setInt(R.id.next_icon, "setColorFilter", if (index < races.lastIndex) WHITE else DONE)
+            v.setInt(R.id.prev_icon, "setColorFilter", if (index > 0) p.text else p.done)
+            v.setInt(R.id.next_icon, "setColorFilter", if (index < races.lastIndex) p.text else p.done)
 
             val dayFmt = DateTimeFormatter.ofPattern("d MMM", locale)
             val first = race.sessions.first().start.atZone(zone)
@@ -190,18 +210,18 @@ class RaceWidget : AppWidgetProvider() {
             v.setTextViewText(R.id.place, "${race.city}, ${race.country}  ·  $dates")
             v.setTextViewText(R.id.mode, if (track) "⇄ Track time" else "⇄ Local time")
             v.setTextViewText(R.id.round, "Round ${race.round} / ${races.last().round}")
-            v.setTextColor(R.id.round, if (index == upcoming) GREY else RED)
+            v.setTextColor(R.id.round, if (index == upcoming) p.sub else RED)
             v.setOnClickPendingIntent(R.id.mode, broadcast(ctx, ACTION_MODE, id))
 
             // Finished race: top 3 of qualifying (left) and race (right), once published.
             val podium = if (race.end <= now) Schedule.podium(ctx, race).also { if (it == null) missing += race } else null
             val rows = if (podium != null) {
                 fun label(d: Driver) = if (fit.short) d.code else d.name
-                listOf(Row(if (fit.short) "Quali" else "Qualifying", "Race", GREY, GREY)) + (0 until 3).map { i ->
+                listOf(Row(if (fit.short) "Quali" else "Qualifying", "Race", p.sub, p.sub)) + (0 until 3).map { i ->
                     Row(
                         podium.quali.getOrNull(i)?.let { "${i + 1}  ${label(it)}" } ?: "",
                         podium.race.getOrNull(i)?.let { "${label(it)}  ${i + 1}" } ?: "",
-                        WHITE, WHITE,
+                        p.text, p.text,
                     )
                 }
             } else {
@@ -214,8 +234,8 @@ class RaceWidget : AppWidgetProvider() {
                     val done = s.end <= now
                     Row(
                         if (fit.short) s.short else s.name, time,
-                        if (i == current) RED else if (done) DONE else WHITE,
-                        if (i == current) RED else if (done) DONE else GREY,
+                        if (i == current) RED else if (done) p.done else p.text,
+                        if (i == current) RED else if (done) p.done else p.sub,
                     )
                 }
             }
