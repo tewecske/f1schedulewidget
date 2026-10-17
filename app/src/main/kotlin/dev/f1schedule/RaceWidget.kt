@@ -24,7 +24,9 @@ class RaceWidget : AppWidgetProvider() {
 
     override fun onUpdate(ctx: Context, mgr: AppWidgetManager, ids: IntArray) = refresh(ctx, force = false)
 
-    override fun onAppWidgetOptionsChanged(ctx: Context, mgr: AppWidgetManager, id: Int, options: Bundle) = render(ctx)
+    override fun onAppWidgetOptionsChanged(ctx: Context, mgr: AppWidgetManager, id: Int, options: Bundle) {
+        render(ctx)
+    }
 
     override fun onReceive(ctx: Context, intent: Intent) {
         val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
@@ -36,7 +38,7 @@ class RaceWidget : AppWidgetProvider() {
                 // Snap back to the upcoming race after a while, so the widget doesn't stay on an old weekend.
                 ctx.getSystemService(AlarmManager::class.java)
                     .set(AlarmManager.RTC, System.currentTimeMillis() + RESET_AFTER_MS, broadcast(ctx, ACTION_RESET))
-                render(ctx)
+                refresh(ctx, force = false)
             }
             ACTION_MODE -> {
                 state.edit().putBoolean("track_$id", !state.getBoolean("track_$id", false)).apply()
@@ -66,13 +68,17 @@ class RaceWidget : AppWidgetProvider() {
         alarms.cancel(broadcast(ctx, ACTION_RESET))
     }
 
+    /** Renders from cache, then fetches the schedule if stale and results of shown past races if missing. */
     private fun refresh(ctx: Context, force: Boolean) {
-        render(ctx)
-        if (!force && !Schedule.isStale(ctx)) return
+        val shown = render(ctx).filter { force || Schedule.shouldFetchPodium(ctx, it) }
+        val stale = force || Schedule.isStale(ctx)
+        if (!stale && shown.isEmpty()) return
         val pending = goAsync()
         thread {
             try {
-                if (Schedule.fetch(ctx)) render(ctx)
+                var changed = stale && Schedule.fetch(ctx)
+                shown.forEach { if (Schedule.fetchPodium(ctx, it)) changed = true }
+                if (changed) render(ctx)
             } finally {
                 pending.finish()
             }
@@ -108,19 +114,23 @@ class RaceWidget : AppWidgetProvider() {
 
         private fun state(ctx: Context) = ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE)
 
-        fun render(ctx: Context) {
+        /** Updates all widgets; returns shown finished races whose results aren't cached yet. */
+        fun render(ctx: Context): List<Race> {
             val mgr = AppWidgetManager.getInstance(ctx)
             val ids = mgr.getAppWidgetIds(ComponentName(ctx, RaceWidget::class.java))
-            if (ids.isEmpty()) return
+            if (ids.isEmpty()) return emptyList()
             val now = Instant.now()
             val races = Schedule.races(ctx)
             val upcoming = races.indexOfFirst { it.end > now }.let { if (it < 0) races.lastIndex else it }
-            for (id in ids) mgr.updateAppWidget(id, views(ctx, mgr, id, races, upcoming, now))
+            val missing = mutableSetOf<Race>()
+            for (id in ids) mgr.updateAppWidget(id, views(ctx, mgr, id, races, upcoming, now, missing))
             races.getOrNull(upcoming)?.let { scheduleTick(ctx, it, now) }
+            return missing.toList()
         }
 
         private fun views(
             ctx: Context, mgr: AppWidgetManager, id: Int, races: List<Race>, upcoming: Int, now: Instant,
+            missing: MutableSet<Race>,
         ): RemoteViews {
             val v = RemoteViews(ctx.packageName, R.layout.widget)
             v.setOnClickPendingIntent(R.id.header, broadcast(ctx, ACTION_HOME, id))
@@ -168,33 +178,50 @@ class RaceWidget : AppWidgetProvider() {
             v.setTextColor(R.id.prev, if (index > 0) WHITE else DONE)
             v.setTextColor(R.id.next, if (index < races.lastIndex) WHITE else DONE)
 
-            // Only the upcoming weekend highlights its current session.
-            val current = if (index == upcoming) race.sessions.indexOfFirst { it.end > now } else -1
-            val times = race.sessions.map { s ->
-                val t = s.start.atZone(zone)
-                if (s.hasTime) t.format(timeFmt) else "${t.format(dayOnly)}  TBC"
+            // Finished race: top 3 of qualifying (left) and race (right), once published.
+            val podium = if (race.end <= now) Schedule.podium(ctx, race).also { if (it == null) missing += race } else null
+            val rows = if (podium != null) {
+                listOf(Row("Qualifying", "Race", GREY, GREY)) + (0 until 3).map { i ->
+                    Row(
+                        podium.quali.getOrNull(i)?.let { "${i + 1}  $it" } ?: "",
+                        podium.race.getOrNull(i)?.let { "$it  ${i + 1}" } ?: "",
+                        WHITE, WHITE,
+                    )
+                }
+            } else {
+                // Only the upcoming weekend highlights its current session.
+                val current = if (index == upcoming) race.sessions.indexOfFirst { it.end > now } else -1
+                race.sessions.mapIndexed { i, s ->
+                    val t = s.start.atZone(zone)
+                    val time = if (s.hasTime) t.format(timeFmt) else "${t.format(dayOnly)}  TBC"
+                    val done = s.end <= now
+                    Row(
+                        s.name, time,
+                        if (i == current) RED else if (done) DONE else WHITE,
+                        if (i == current) RED else if (done) DONE else GREY,
+                    )
+                }
             }
             ROWS.forEachIndexed { i, row ->
-                val s = race.sessions.getOrNull(i)
-                if (s == null) {
+                val r = rows.getOrNull(i)
+                if (r == null) {
                     v.setViewVisibility(row, View.GONE)
                     return@forEachIndexed
                 }
-                val done = s.end <= now
                 v.setViewVisibility(row, View.VISIBLE)
-                v.setTextViewText(NAMES[i], s.name)
-                v.setTextViewText(TIMES[i], times[i])
-                v.setTextColor(NAMES[i], if (i == current) RED else if (done) DONE else WHITE)
-                v.setTextColor(TIMES[i], if (i == current) RED else if (done) DONE else GREY)
+                v.setTextViewText(NAMES[i], r.left)
+                v.setTextViewText(TIMES[i], r.right)
+                v.setTextColor(NAMES[i], r.leftColor)
+                v.setTextColor(TIMES[i], r.rightColor)
             }
 
-            applyScale(ctx, mgr, id, v, race.sessions.map { it.name }, times)
+            applyScale(ctx, mgr, id, v, rows)
             return v
         }
 
         /** Fit text to the widget's current size so every row is visible without wasting space. */
         private fun applyScale(
-            ctx: Context, mgr: AppWidgetManager, id: Int, v: RemoteViews, names: List<String>, times: List<String>,
+            ctx: Context, mgr: AppWidgetManager, id: Int, v: RemoteViews, rows: List<Row>,
         ) {
             val o = mgr.getAppWidgetOptions(id)
             val landscape = ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -203,10 +230,10 @@ class RaceWidget : AppWidgetProvider() {
             val h = SIZE_FUDGE * o.getInt(if (landscape) AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
             if (w <= 0 || h <= 0) return
 
-            val n = names.size
+            val n = rows.size
             val fixedH = 24f + 6f + 3f * n + 6f // padding, header margin, row gaps, footer gap
             fun heightScale(subLines: Int) = (h - fixedH) / (LINE * (TITLE + SUB * subLines + ROW * n + FOOT))
-            val chars = names.maxOf { it.length } + times.maxOf { it.length }
+            val chars = rows.maxOf { it.left.length + it.right.length }
             val widthScale = (w - 12f - 16f - 12f) / (ROW * 0.55f * chars)
 
             // Drop the circuit line before shrinking text too far.
@@ -227,6 +254,8 @@ class RaceWidget : AppWidgetProvider() {
             NAMES.forEach { size(it, ROW) }
             TIMES.forEach { size(it, ROW) }
         }
+
+        private class Row(val left: String, val right: String, val leftColor: Int, val rightColor: Int)
 
         /** Re-render when the highlighted session changes (session start/end, race over). */
         private fun scheduleTick(ctx: Context, race: Race, now: Instant) {
