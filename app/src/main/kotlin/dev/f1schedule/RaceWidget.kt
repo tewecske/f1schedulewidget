@@ -64,7 +64,7 @@ class RaceWidget : AppWidgetProvider() {
     }
 
     override fun onDeleted(ctx: Context, ids: IntArray) {
-        state(ctx).edit().apply { ids.forEach { remove("off_$it"); remove("track_$it"); remove("bg_$it") } }.apply()
+        state(ctx).edit().apply { ids.forEach { remove("off_$it"); remove("track_$it"); COLOR_KEYS.forEach { k -> remove("${k}_$it") } } }.apply()
     }
 
     override fun onDisabled(ctx: Context) {
@@ -89,6 +89,12 @@ class RaceWidget : AppWidgetProvider() {
             }
         }
     }
+
+    /** Colour settings (ARGB). Text colours are null when automatic. */
+    class Colors(val bg: Int, val main: Int?, val past: Int?, val next: Int?)
+
+    /** Resolved colours: background, main text, secondary text, finished sessions, highlighted session. */
+    class Palette(val bg: Int, val text: Int, val sub: Int, val done: Int, val next: Int)
 
     companion object {
         private const val ACTION_PREV = "dev.f1schedule.PREV"
@@ -125,30 +131,40 @@ class RaceWidget : AppWidgetProvider() {
 
         private fun state(ctx: Context) = ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE)
 
-        /** Background colour (ARGB) of a widget, or the default for all widgets when [id] is invalid. */
-        fun background(ctx: Context, id: Int): Int {
-            val default = state(ctx).getInt("bg_default", DEFAULT_BG)
-            return if (id == AppWidgetManager.INVALID_APPWIDGET_ID) default else state(ctx).getInt("bg_$id", default)
+        private val COLOR_KEYS = listOf("bg", "main", "past", "next")
+
+        /** Colours of a widget, or the defaults for all widgets when [id] is invalid. */
+        fun colors(ctx: Context, id: Int): Colors {
+            val s = state(ctx)
+            fun get(key: String): Int? {
+                val own = "${key}_$id"
+                val k = if (id != AppWidgetManager.INVALID_APPWIDGET_ID && s.contains(own)) own else "${key}_default"
+                return if (s.contains(k)) s.getInt(k, 0) else null
+            }
+            return Colors(get("bg") ?: DEFAULT_BG, get("main"), get("past"), get("next"))
         }
 
-        /** Sets one widget's background, or the default for all widgets (dropping their own) when [id] is invalid. */
-        fun setBackground(ctx: Context, id: Int, argb: Int) {
+        /** Sets one widget's colours, or the defaults for all widgets (dropping their own) when [id] is invalid. */
+        fun setColors(ctx: Context, id: Int, c: Colors) {
             val s = state(ctx)
-            if (id != AppWidgetManager.INVALID_APPWIDGET_ID) return s.edit().putInt("bg_$id", argb).apply()
+            val all = id == AppWidgetManager.INVALID_APPWIDGET_ID
             s.edit().apply {
-                s.all.keys.filter { it.startsWith("bg_") }.forEach(::remove)
-                putInt("bg_default", argb)
+                listOf("bg" to c.bg, "main" to c.main, "past" to c.past, "next" to c.next).forEach { (key, value) ->
+                    if (all) s.all.keys.filter { it.startsWith("${key}_") }.forEach(::remove)
+                    val k = if (all) "${key}_default" else "${key}_$id"
+                    if (value == null) remove(k) else putInt(k, value)
+                }
             }.apply()
         }
 
-        /** Text colours: primary, secondary, finished. */
-        class Palette(val text: Int, val sub: Int, val done: Int)
-
-        /** Dark text on light, mostly opaque backgrounds; light text otherwise. */
-        fun palette(argb: Int): Palette {
-            val lum = (0.2126 * Color.red(argb) + 0.7152 * Color.green(argb) + 0.0722 * Color.blue(argb)) / 255
-            return if (lum > 0.55 && Color.alpha(argb) >= 0x80) Palette(0xFF141414.toInt(), 0xFF5C5C5C.toInt(), 0xFFADADAD.toInt())
-            else Palette(0xFFFFFFFF.toInt(), 0xFF9A9A9A.toInt(), 0xFF555555.toInt())
+        /** Fills automatic text colours: dark on light backgrounds, light otherwise. */
+        fun palette(c: Colors): Palette {
+            val lum = (0.2126 * Color.red(c.bg) + 0.7152 * Color.green(c.bg) + 0.0722 * Color.blue(c.bg)) / 255
+            val light = lum > 0.55
+            val text = c.main ?: if (light) 0xFF141414.toInt() else 0xFFFFFFFF.toInt()
+            val sub = (text and 0xFFFFFF) or (Color.alpha(text) * 6 / 10 shl 24)
+            val done = c.past ?: if (light) 0xFFADADAD.toInt() else 0xFF555555.toInt()
+            return Palette(c.bg, text, sub, done, c.next ?: RED)
         }
 
         /** Updates all widgets; returns shown finished races whose results aren't cached yet. */
@@ -171,10 +187,9 @@ class RaceWidget : AppWidgetProvider() {
         ): RemoteViews {
             val v = RemoteViews(ctx.packageName, R.layout.widget)
             v.setOnClickPendingIntent(R.id.header, broadcast(ctx, ACTION_HOME, id))
-            val bg = background(ctx, id)
-            val p = palette(bg)
-            v.setInt(R.id.bg, "setColorFilter", bg or 0xFF000000.toInt())
-            v.setInt(R.id.bg, "setImageAlpha", Color.alpha(bg))
+            val p = palette(colors(ctx, id))
+            v.setInt(R.id.bg, "setColorFilter", p.bg or 0xFF000000.toInt())
+            v.setInt(R.id.bg, "setImageAlpha", Color.alpha(p.bg))
             v.setTextColor(R.id.title, p.text)
             listOf(R.id.circuit, R.id.place, R.id.mode).forEach { v.setTextColor(it, p.sub) }
 
@@ -221,7 +236,7 @@ class RaceWidget : AppWidgetProvider() {
             v.setTextViewText(R.id.place, "${race.city}, ${race.country}  ·  $dates")
             v.setTextViewText(R.id.mode, if (track) "⇄ Track time" else "⇄ Local time")
             v.setTextViewText(R.id.round, "Round ${race.round} / ${races.last().round}")
-            v.setTextColor(R.id.round, if (index == upcoming) p.sub else RED)
+            v.setTextColor(R.id.round, if (index == upcoming) p.sub else p.next)
             v.setOnClickPendingIntent(R.id.mode, broadcast(ctx, ACTION_MODE, id))
 
             // Finished race: top 3 of qualifying (left) and race (right), once published.
@@ -245,8 +260,8 @@ class RaceWidget : AppWidgetProvider() {
                     val done = s.end <= now
                     Row(
                         if (fit.short) s.short else s.name, time,
-                        if (i == current) RED else if (done) p.done else p.text,
-                        if (i == current) RED else if (done) p.done else p.sub,
+                        if (i == current) p.next else if (done) p.done else p.text,
+                        if (i == current) p.next else if (done) p.done else p.sub,
                     )
                 }
             }
