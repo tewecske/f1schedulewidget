@@ -11,6 +11,8 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
+import android.graphics.Paint
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
@@ -79,12 +81,14 @@ class SettingsActivity : Activity() {
             listOf("Background", "Main", "Dimmed", "Highlighted").forEachIndexed { i, name ->
                 val tab = text(name, 13f).apply {
                     gravity = Gravity.CENTER
-                    setPadding(0, 8.dp, 0, 8.dp)
+                    maxLines = 1
+                    setPadding(2.dp, 0, 2.dp, 0)
                     setOnClickListener { select(i) }
                 }
                 tabs += tab
-                addView(tab, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(tab, LinearLayout.LayoutParams(0, 36.dp, 1f))
             }
+            post(::fitTabs)
         })
 
         hex = EditText(this).apply {
@@ -153,6 +157,15 @@ class SettingsActivity : Activity() {
 
         setContentView(root)
         select(0)
+    }
+
+    /** One text size for all tabs: the largest at which every label fits in bold (narrow screens, big fonts). */
+    private fun fitTabs() {
+        val paint = Paint().apply { typeface = Typeface.DEFAULT_BOLD }
+        var size = tabs[0].textSize
+        val min = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 8f, resources.displayMetrics)
+        while (size > min && tabs.any { paint.apply { textSize = size }.measureText(it.text.toString()) > it.width - it.totalPaddingLeft - it.totalPaddingRight }) size -= 1
+        tabs.forEach { it.setTextSize(TypedValue.COMPLEX_UNIT_PX, size) }
     }
 
     private fun load(c: RaceWidget.Colors) {
