@@ -18,6 +18,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 
@@ -41,6 +42,8 @@ class SettingsActivity : Activity() {
     private lateinit var rows: List<Pair<TextView, TextView>> // dimmed, highlighted, normal
     private lateinit var colour: TextView
     private lateinit var hex: EditText
+    private lateinit var picker: ColorPicker
+    private var picking = false
     private lateinit var opacity: TextView
     private lateinit var seek: SeekBar
 
@@ -99,12 +102,25 @@ class SettingsActivity : Activity() {
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable) {
                     val t = s.toString().removePrefix("#")
-                    if (t.length == 6) t.toIntOrNull(16)?.let { edit((values[target] and 0xFF000000.toInt()) or it) }
+                    if (t.length == 6) t.toIntOrNull(16)?.let {
+                        if (!picking) picker.setColor(it)
+                        edit((values[target] and 0xFF000000.toInt()) or it)
+                    }
                 }
             })
         }
 
-        // Preset colours; any other via hex.
+        picker = ColorPicker(this).apply {
+            onPick = {
+                picking = true
+                hex.setText(String.format("#%06X", it))
+                hex.setSelection(hex.length())
+                picking = false
+            }
+        }
+        root.addView(picker, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8.dp })
+
+        // Preset colours; any other via the picker or hex.
         root.addView(LinearLayout(this).apply {
             gravity = Gravity.CENTER
             setPadding(0, 8.dp, 0, 4.dp)
@@ -155,7 +171,7 @@ class SettingsActivity : Activity() {
             })
         })
 
-        setContentView(root)
+        setContentView(ScrollView(this).apply { addView(root) })
         select(0)
     }
 
