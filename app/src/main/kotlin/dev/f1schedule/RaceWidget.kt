@@ -292,8 +292,8 @@ class RaceWidget : AppWidgetProvider() {
             // Finished race: qualifying (left, with lap times when they fit) and race (right), once published.
             val results = if (race.end <= now) Schedule.results(ctx, race).also { if (it == null) missing += race } else null
             val rows = if (results != null) {
-                // As many results as fit below the header.
-                val n = minOf((fit.rowsAt(fit.scale) - 1).coerceAtLeast(1), maxOf(results.quali.size, results.race.size))
+                // Always the top 3; more when they fit below the header.
+                val n = minOf((fit.rowsAt(fit.scale) - 1).coerceAtLeast(3), maxOf(results.quali.size, results.race.size))
                 fun rows(codes: Boolean, laps: Boolean): List<Row> {
                     fun label(d: Driver) = if (codes) d.code else d.name
                     return listOf(Row(if (codes) "Quali" else "Qualifying", p.sub, "Race", p.sub, mono = true)) + (0 until n).map { i ->
@@ -320,11 +320,7 @@ class RaceWidget : AppWidgetProvider() {
             } else {
                 // Only the upcoming weekend highlights its current session.
                 val current = if (index == upcoming) race.sessions.indexOfFirst { it.end > now } else -1
-                // Too small for the whole weekend: leave out finished sessions first, then the last ones.
-                val k = fit.rowsAt(fit.scale).coerceIn(1, race.sessions.size)
-                val open = race.sessions.indexOfFirst { it.end > now }.let { if (it < 0) race.sessions.size else it }
-                val start = minOf(open, race.sessions.size - k)
-                race.sessions.withIndex().drop(start).take(k).map { (i, s) ->
+                race.sessions.mapIndexed { i, s ->
                     val t = s.start.atZone(zone)
                     val done = s.end <= now
                     val color = if (i == current) p.next else if (done) p.done else p.sub
@@ -374,10 +370,10 @@ class RaceWidget : AppWidgetProvider() {
         }
 
         /**
-         * What a widget size shows at text scale [scale], which doesn't depend on the size. Full session
-         * [names] when they fit; then the footer, location and circuit lines are added in that order while
-         * a whole weekend still fits below them. [forceFooter] keeps the footer regardless. Widgets too
-         * small for a whole weekend show fewer rows.
+         * What a widget size shows at the chosen text [scale], which never changes with the size: all
+         * sessions and times, the top 3 results and the footer when [forceFooter] are always shown (too
+         * big a text size for the widget is the user's to adjust). Full session [names] when they fit;
+         * the footer, location and circuit lines are added in that order while a whole weekend still fits.
          */
         private fun fit(
             mgr: AppWidgetManager, id: Int, names: List<String>, days: List<String>, times: List<String>,
@@ -387,15 +383,26 @@ class RaceWidget : AppWidgetProvider() {
             val rowWidth = w - 2 * ARROW_W
             if (w <= 0 || h <= 0) return Fit(false, true, true, true, scale, Float.MAX_VALUE, Float.MAX_VALUE)
 
+            // Largest scale at which the header lines and a whole weekend fit the height.
+            fun byHeight(footer: Boolean, place: Boolean, circuit: Boolean): Float {
+                var fixed = 2 * PAD_V + HEADER_GAP + MAX_ROWS * ROW_GAP
+                var text = Measure.line(TITLE, medium = true) + MAX_ROWS * Measure.rowLine
+                if (footer) { fixed += FOOTER_GAP; text += Measure.line(FOOT) }
+                if (place) text += Measure.line(SUB)
+                if (circuit) text += Measure.line(SUB)
+                return (h - fixed) / text
+            }
             // Session table: name | day | time.
-            val full = names.maxOf { Measure.width(it, ROW) } + COL_GAP +
-                days.maxOf { Measure.width(it, ROW, medium = true) } + INNER_GAP + times.maxOf { Measure.width(it, ROW, medium = true) }
-            val short = full * scale * SLACK > rowWidth
-            fun fits(f: Boolean, p: Boolean, c: Boolean) = Fit(short, f, p, c, scale, rowWidth, h).rowsAt(scale) >= MAX_ROWS
-            val footer = forceFooter || fits(true, false, false)
-            val place = footer && fits(footer, true, false)
-            val circuit = place && fits(footer, true, true)
-            return Fit(short, footer, place, circuit, scale, rowWidth, h)
+            val time = COL_GAP + days.maxOf { Measure.width(it, ROW, medium = true) } + INNER_GAP +
+                times.maxOf { Measure.width(it, ROW, medium = true) }
+            fun byWidth(names: List<String>) = rowWidth / ((names.maxOf { Measure.width(it, ROW) } + time) * SLACK)
+
+            val short = byWidth(names) < scale
+            val s = scale
+            val footer = forceFooter || byHeight(true, false, false) >= s
+            val place = footer && byHeight(footer, true, false) >= s
+            val circuit = place && byHeight(footer, true, true) >= s
+            return Fit(short, footer, place, circuit, s, rowWidth, h)
         }
 
         /** The widget's size in dp in the current orientation, slightly under to be safe. */
