@@ -7,4 +7,5 @@
     <dimen name="footer_gap">4dp</dimen>
     <dimen name="row_gap">1dp</dimen>
     <dimen name="col_gap">12dp</dimen>
+    <dimen name="inner_gap">6dp</dimen>
 </resources>

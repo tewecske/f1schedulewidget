@@ -56,9 +56,6 @@ object Schedule {
     )
     private val RACE = Kind("", "Race", "Race", 120)
 
-    /** Every (name, short name) a session can have. */
-    val SESSION_NAMES = (SESSIONS + RACE).map { it.name to it.short }
-
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("schedule", Context.MODE_PRIVATE)
 
     /** Cached season, chronological. */

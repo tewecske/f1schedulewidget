@@ -52,6 +52,7 @@ class SettingsActivity : Activity() {
     private lateinit var always: CheckBox
     private lateinit var round: RadioButton
     private lateinit var date: RadioButton
+    private lateinit var sizeBar: SeekBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -173,6 +174,23 @@ class SettingsActivity : Activity() {
             check(if (foot.date) date.id else round.id)
         }, weight = false))
 
+        // Text size, the same at every widget size: 70-150 % in steps of 5.
+        val sizeLabel = label("")
+        root.addView(sizeLabel)
+        sizeBar = SeekBar(this).apply {
+            max = (MAX_TEXT - MIN_TEXT) / 5
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
+                    sizeLabel.text = "Text size  ${MIN_TEXT + value * 5}%"
+                }
+                override fun onStartTrackingTouch(bar: SeekBar) {}
+                override fun onStopTrackingTouch(bar: SeekBar) {}
+            })
+            progress = (RaceWidget.textSize(this@SettingsActivity, widgetId).coerceIn(MIN_TEXT, MAX_TEXT) - MIN_TEXT) / 5
+            sizeLabel.text = "Text size  ${MIN_TEXT + progress * 5}%"
+        }
+        root.addView(sizeBar)
+
         root.addView(LinearLayout(this).apply {
             gravity = Gravity.END
             setPadding(0, 12.dp, 0, 0)
@@ -183,6 +201,7 @@ class SettingsActivity : Activity() {
                     select(target)
                     always.isChecked = false
                     round.isChecked = true
+                    sizeBar.progress = (100 - MIN_TEXT) / 5
                 }
             })
             addView(Button(this@SettingsActivity).apply {
@@ -190,6 +209,7 @@ class SettingsActivity : Activity() {
                 setOnClickListener {
                     RaceWidget.setColors(this@SettingsActivity, widgetId, colors())
                     RaceWidget.setFooter(this@SettingsActivity, widgetId, RaceWidget.Footer(always.isChecked, date.isChecked))
+                    RaceWidget.setTextSize(this@SettingsActivity, widgetId, MIN_TEXT + sizeBar.progress * 5)
                     RaceWidget.render(this@SettingsActivity)
                     finish()
                 }
@@ -286,6 +306,8 @@ class SettingsActivity : Activity() {
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
 
     companion object {
+        private const val MIN_TEXT = 70
+        private const val MAX_TEXT = 150
         private val SWATCHES = intArrayOf(0x000000, 0x3A3A3A, 0x9A9A9A, 0xFFFFFF, 0xFF2800, 0xFFC400, 0x0B1A33, 0x0D2B1E)
     }
 }

@@ -15,6 +15,9 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.TypefaceSpan
 import android.text.format.DateFormat
 import android.util.SizeF
 import android.util.TypedValue
@@ -125,33 +128,42 @@ class RaceWidget : AppWidgetProvider() {
         private const val FOOTER_GAP = 4f
         private const val ROW_GAP = 1f
         private const val COL_GAP = 12f
+        private const val INNER_GAP = 6f
         private const val SIZE_FUDGE = 0.85f
+        private const val SLACK = 1.08f // the system font can render a little wider than measured
         private const val EXACT_FUDGE = 0.97f
         private const val MAX_ROWS = 5 // sessions in a weekend
-        private const val MIN_SCALE = 0.6f
-        private const val MAX_SCALE = 2f
 
-        // Header plus Schedule.RESULT_ROWS results.
-        private val ROWS = intArrayOf(
-            R.id.row0, R.id.row1, R.id.row2, R.id.row3, R.id.row4, R.id.row5,
-            R.id.row6, R.id.row7, R.id.row8, R.id.row9, R.id.row10,
+        // Table cells per column, one per row: a header plus Schedule.RESULT_ROWS results.
+        private val POS = intArrayOf(
+            R.id.pos0, R.id.pos1, R.id.pos2, R.id.pos3, R.id.pos4, R.id.pos5,
+            R.id.pos6, R.id.pos7, R.id.pos8, R.id.pos9, R.id.pos10,
         )
         private val NAMES = intArrayOf(
             R.id.name0, R.id.name1, R.id.name2, R.id.name3, R.id.name4, R.id.name5,
             R.id.name6, R.id.name7, R.id.name8, R.id.name9, R.id.name10,
         )
-        private val MIDS = intArrayOf(
-            R.id.mid0, R.id.mid1, R.id.mid2, R.id.mid3, R.id.mid4, R.id.mid5,
-            R.id.mid6, R.id.mid7, R.id.mid8, R.id.mid9, R.id.mid10,
+        private val LAPS = intArrayOf(
+            R.id.lap0, R.id.lap1, R.id.lap2, R.id.lap3, R.id.lap4, R.id.lap5,
+            R.id.lap6, R.id.lap7, R.id.lap8, R.id.lap9, R.id.lap10,
+        )
+        private val DAYS = intArrayOf(
+            R.id.day0, R.id.day1, R.id.day2, R.id.day3, R.id.day4, R.id.day5,
+            R.id.day6, R.id.day7, R.id.day8, R.id.day9, R.id.day10,
         )
         private val TIMES = intArrayOf(
             R.id.time0, R.id.time1, R.id.time2, R.id.time3, R.id.time4, R.id.time5,
             R.id.time6, R.id.time7, R.id.time8, R.id.time9, R.id.time10,
         )
+        private val RPOS = intArrayOf(
+            R.id.rpos0, R.id.rpos1, R.id.rpos2, R.id.rpos3, R.id.rpos4, R.id.rpos5,
+            R.id.rpos6, R.id.rpos7, R.id.rpos8, R.id.rpos9, R.id.rpos10,
+        )
+        private val CELLS = listOf(POS, NAMES, LAPS, DAYS, TIMES, RPOS)
 
         private fun state(ctx: Context) = ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE)
 
-        private val SETTING_KEYS = listOf("bg", "main", "past", "next", "footer", "footdate")
+        private val SETTING_KEYS = listOf("bg", "main", "past", "next", "footer", "footdate", "textsize")
 
         /** A widget's own setting, else the default for all widgets; or only the default when [id] is invalid. */
         private fun setting(ctx: Context, id: Int, key: String): Int? {
@@ -185,6 +197,11 @@ class RaceWidget : AppWidgetProvider() {
 
         fun setFooter(ctx: Context, id: Int, f: Footer) =
             putSettings(ctx, id, listOf("footer" to if (f.always) 1 else 0, "footdate" to if (f.date) 1 else 0))
+
+        /** Text size in percent of normal; the same at every widget size. */
+        fun textSize(ctx: Context, id: Int) = setting(ctx, id, "textsize") ?: 100
+
+        fun setTextSize(ctx: Context, id: Int, percent: Int) = putSettings(ctx, id, listOf("textsize" to percent))
 
         /** Fills automatic text colours: dark on light backgrounds, light otherwise. */
         fun palette(c: Colors): Palette {
@@ -227,12 +244,12 @@ class RaceWidget : AppWidgetProvider() {
                 v.setTextViewText(R.id.circuit, "Tap to refresh")
                 v.setViewVisibility(R.id.circuit, View.VISIBLE)
                 listOf(R.id.place, R.id.prev, R.id.next, R.id.footer).forEach { v.setViewVisibility(it, View.INVISIBLE) }
-                ROWS.forEach { v.setViewVisibility(it, View.GONE) }
+                v.setViewVisibility(R.id.table, View.GONE)
                 return v
             }
 
             // Hosts may replay these actions onto the previous views, so undo the empty state explicitly.
-            listOf(R.id.prev, R.id.next).forEach { v.setViewVisibility(it, View.VISIBLE) }
+            listOf(R.id.prev, R.id.next, R.id.table).forEach { v.setViewVisibility(it, View.VISIBLE) }
 
             val state = state(ctx)
             val offset = state.getInt("off_$id", 0)
@@ -240,13 +257,13 @@ class RaceWidget : AppWidgetProvider() {
             if (index - upcoming != offset) state.edit().putInt("off_$id", index - upcoming).apply()
             val race = races[index]
             val locale = Locale.getDefault()
-            val timeFmt = DateTimeFormatter.ofPattern(
-                if (DateFormat.is24HourFormat(ctx)) "EEE  HH:mm" else "EEE  h:mm a", locale,
-            )
-            // Size for the largest weekend rather than what's shown, so text doesn't jump between races.
-            val samples = (1..7).map { ZonedDateTime.of(2001, 1, it, 22, 59, 0, 0, ZoneId.systemDefault()).format(timeFmt) }
+            val dayOnly = DateTimeFormatter.ofPattern("EEE", locale)
+            val timeFmt = DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(ctx)) "HH:mm" else "h:mm a", locale)
+            // Size for the widest days and times rather than what's shown, so text doesn't jump between races.
+            val days = (1..7).map { ZonedDateTime.of(2001, 1, it, 0, 0, 0, 0, ZoneId.systemDefault()).format(dayOnly) }
+            val times = (0..23).map { ZonedDateTime.of(2001, 1, 1, it, 59, 0, 0, ZoneId.systemDefault()).format(timeFmt) }
             val foot = footer(ctx, id)
-            val fit = fit(mgr, id, samples, foot.always)
+            val fit = fit(mgr, id, race.sessions.map { it.name }, days, times, foot.always, textSize(ctx, id) / 100f)
             // Without the footer there's no toggle, so show local time.
             val track = fit.footer && state.getBoolean("track_$id", false)
             val zone = if (track) race.trackZone else ZoneId.systemDefault()
@@ -266,7 +283,8 @@ class RaceWidget : AppWidgetProvider() {
             // The date moves to the bottom row when chosen there.
             val dateBelow = fit.footer && foot.date
             v.setTextViewText(R.id.place, "${race.city}, ${race.country}" + if (dateBelow) "" else "  ·  $dates")
-            v.setTextViewText(R.id.mode, if (track) "⇄ Track time" else "⇄ Local time")
+            // Narrow widgets (short session names) get the short label too.
+            v.setTextViewText(R.id.mode, (if (track) "⇄ Track" else "⇄ Local") + if (fit.short) "" else " time")
             v.setTextViewText(R.id.round, if (dateBelow) dates else "Round ${race.round} / ${races.last().round}")
             v.setTextColor(R.id.round, if (index == upcoming) p.sub else p.next)
             v.setOnClickPendingIntent(R.id.mode, broadcast(ctx, ACTION_MODE, id))
@@ -274,65 +292,68 @@ class RaceWidget : AppWidgetProvider() {
             // Finished race: qualifying (left, with lap times when they fit) and race (right), once published.
             val results = if (race.end <= now) Schedule.results(ctx, race).also { if (it == null) missing += race } else null
             val rows = if (results != null) {
-                // As many results as fit below the header at the session text size, at least the podium.
-                val n = minOf((fit.rowsAt(fit.scale) - 1).coerceAtLeast(3), maxOf(results.quali.size, results.race.size))
-                fun rows(codes: Boolean, times: Boolean): List<Row> {
+                // As many results as fit below the header.
+                val n = minOf((fit.rowsAt(fit.scale) - 1).coerceAtLeast(1), maxOf(results.quali.size, results.race.size))
+                fun rows(codes: Boolean, laps: Boolean): List<Row> {
                     fun label(d: Driver) = if (codes) d.code else d.name
-                    return listOf(Row(if (codes) "Quali" else "Qualifying", "Race", p.sub, p.sub)) + (0 until n).map { i ->
+                    return listOf(Row(if (codes) "Quali" else "Qualifying", p.sub, "Race", p.sub, mono = true)) + (0 until n).map { i ->
                         val q = results.quali.getOrNull(i)
-                        // Figure space pads 1-9 to the width of 10 so names line up.
-                        val pos = if (n >= 10 && i < 9) "\u2007${i + 1}" else "${i + 1}"
+                        val r = results.race.getOrNull(i)
                         Row(
-                            q?.let { "$pos  ${label(it)}" } ?: "",
-                            results.race.getOrNull(i)?.let { "${label(it)}  $pos" } ?: "",
-                            p.text, p.text,
-                            mid = if (times) q?.time ?: "" else "",
+                            q?.let(::label) ?: "", p.text, r?.let(::label) ?: "", p.text,
+                            pos = if (q != null) "${i + 1}" else "",
+                            lap = if (laps) q?.time ?: "" else "",
+                            rpos = if (r != null) "${i + 1}" else "",
+                            mono = true,
                         )
                     }
                 }
-                // Names before lap times, lap times before codes; whatever fits without smaller text.
-                val hasTimes = results.quali.any { it.time.isNotEmpty() }
+                // Names before lap times, lap times before codes; the first that fits.
+                val hasLaps = results.quali.any { it.time.isNotEmpty() }
                 val options = listOfNotNull(
-                    if (!fit.short && hasTimes) rows(codes = false, times = true) else null,
-                    if (!fit.short) rows(codes = false, times = false) else null,
-                    if (hasTimes) rows(codes = true, times = true) else null,
-                    rows(codes = true, times = false),
+                    if (!fit.short && hasLaps) rows(codes = false, laps = true) else null,
+                    if (!fit.short) rows(codes = false, laps = false) else null,
+                    if (hasLaps) rows(codes = true, laps = true) else null,
+                    rows(codes = true, laps = false),
                 )
-                options.firstOrNull { o -> o.maxOf { Measure.row(it) } * fit.scale <= fit.rowWidth } ?: options.last()
+                options.firstOrNull { Measure.table(it) * fit.scale * SLACK <= fit.rowWidth } ?: options.last()
             } else {
                 // Only the upcoming weekend highlights its current session.
                 val current = if (index == upcoming) race.sessions.indexOfFirst { it.end > now } else -1
-                val dayOnly = DateTimeFormatter.ofPattern("EEE", locale)
-                race.sessions.mapIndexed { i, s ->
+                // Too small for the whole weekend: leave out finished sessions first, then the last ones.
+                val k = fit.rowsAt(fit.scale).coerceIn(1, race.sessions.size)
+                val open = race.sessions.indexOfFirst { it.end > now }.let { if (it < 0) race.sessions.size else it }
+                val start = minOf(open, race.sessions.size - k)
+                race.sessions.withIndex().drop(start).take(k).map { (i, s) ->
                     val t = s.start.atZone(zone)
-                    val time = if (s.hasTime) t.format(timeFmt) else "${t.format(dayOnly)}  TBC"
                     val done = s.end <= now
+                    val color = if (i == current) p.next else if (done) p.done else p.sub
                     Row(
-                        if (fit.short) s.short else s.name, time,
-                        if (i == current) p.next else if (done) p.done else p.text,
-                        if (i == current) p.next else if (done) p.done else p.sub,
+                        if (fit.short) s.short else s.name, if (i == current) p.next else if (done) p.done else p.text,
+                        if (s.hasTime) t.format(timeFmt) else "TBC", color,
+                        day = t.format(dayOnly),
                     )
                 }
             }
-            ROWS.forEachIndexed { i, row ->
+            // Columns without content are hidden along with their gaps.
+            val cols = listOf(Row::pos, Row::name, Row::lap, Row::day, Row::right, Row::rpos)
+            listOf(R.id.col_pos, R.id.col_name, R.id.col_lap, R.id.col_day, R.id.col_time, R.id.col_rpos).forEachIndexed { c, col ->
+                v.setViewVisibility(col, if (c == 1 || rows.any { cols[c](it).isNotEmpty() }) View.VISIBLE else View.GONE)
+            }
+            for (i in 0..Schedule.RESULT_ROWS) {
                 val r = rows.getOrNull(i)
-                if (r == null) {
-                    v.setViewVisibility(row, View.GONE)
-                    return@forEachIndexed
-                }
-                v.setViewVisibility(row, View.VISIBLE)
-                v.setViewVisibility(MIDS[i], if (r.mid.isEmpty()) View.GONE else View.VISIBLE)
-                v.setTextViewText(MIDS[i], r.mid)
-                v.setTextColor(MIDS[i], p.sub)
-                v.setTextViewText(NAMES[i], r.left)
-                v.setTextViewText(TIMES[i], r.right)
-                v.setTextColor(NAMES[i], r.leftColor)
+                CELLS.forEach { v.setViewVisibility(it[i], if (r == null) View.GONE else View.VISIBLE) }
+                if (r == null) continue
+                CELLS.forEachIndexed { c, cells -> v.setTextViewText(cells[i], if (r.mono) monospace(cols[c](r)) else cols[c](r)) }
+                v.setTextColor(POS[i], p.sub)
+                v.setTextColor(NAMES[i], r.nameColor)
+                v.setTextColor(LAPS[i], p.sub)
+                v.setTextColor(DAYS[i], r.rightColor)
                 v.setTextColor(TIMES[i], r.rightColor)
+                v.setTextColor(RPOS[i], p.sub)
             }
 
-            // Unusually long names may still need smaller text than the reference.
-            val widest = rows.maxOf { Measure.row(it) }
-            apply(v, fit, minOf(fit.scale, fit.rowWidth / widest).coerceAtLeast(MIN_SCALE))
+            apply(v, fit, fit.scale)
             return v
         }
 
@@ -348,43 +369,33 @@ class RaceWidget : AppWidgetProvider() {
                 if (footer) used += FOOTER_GAP + Measure.line(FOOT) * s
                 if (place) used += Measure.line(SUB) * s
                 if (circuit) used += Measure.line(SUB) * s
-                return ((height - used) / (Measure.line(ROW) * s + ROW_GAP)).toInt()
+                return ((height - used) / (Measure.rowLine * s + ROW_GAP)).toInt()
             }
         }
 
         /**
-         * Measures the content at scale 1 and picks the largest text that fits. Sessions come first;
-         * then the footer, location and circuit lines are added in that order while they don't
-         * shrink the text (below normal size on big widgets). [forceFooter] keeps the footer regardless.
+         * What a widget size shows at text scale [scale], which doesn't depend on the size. Full session
+         * [names] when they fit; then the footer, location and circuit lines are added in that order while
+         * a whole weekend still fits below them. [forceFooter] keeps the footer regardless. Widgets too
+         * small for a whole weekend show fewer rows.
          */
-        private fun fit(mgr: AppWidgetManager, id: Int, timeSamples: List<String>, forceFooter: Boolean): Fit {
+        private fun fit(
+            mgr: AppWidgetManager, id: Int, names: List<String>, days: List<String>, times: List<String>,
+            forceFooter: Boolean, scale: Float,
+        ): Fit {
             val (w, h) = size(mgr.getAppWidgetOptions(id))
-            val rowWidth = w - 2 * ARROW_W - COL_GAP
-            if (w <= 0 || h <= 0) return Fit(false, true, true, true, 1f, Float.MAX_VALUE, 0f)
+            val rowWidth = w - 2 * ARROW_W
+            if (w <= 0 || h <= 0) return Fit(false, true, true, true, scale, Float.MAX_VALUE, Float.MAX_VALUE)
 
-            val time = timeSamples.maxOf { Measure.width(it, ROW, medium = true) }
-            fun byWidth(short: Boolean) = rowWidth / (Schedule.SESSION_NAMES.maxOf { Measure.width(if (short) it.second else it.first, ROW) } + time)
-            fun byHeight(footer: Boolean, place: Boolean, circuit: Boolean): Float {
-                var fixed = 2 * PAD_V + HEADER_GAP + MAX_ROWS * ROW_GAP
-                var text = Measure.line(TITLE, medium = true) + MAX_ROWS * Measure.line(ROW)
-                if (footer) { fixed += FOOTER_GAP; text += Measure.line(FOOT) }
-                if (place) text += Measure.line(SUB)
-                if (circuit) text += Measure.line(SUB)
-                return (h - fixed) / text
-            }
-
-            val base = byHeight(forceFooter, false, false)
-            val full = byWidth(false)
-            val shortW = byWidth(true)
-            // Full names unless they'd make the text noticeably smaller than normal (or than height allows).
-            val short = full < 0.85f * minOf(shortW, base, 1f)
-            val width = if (short) shortW else full
-            val goal = minOf(width, base, MAX_SCALE, 1f) * 0.98f
-            fun scale(f: Boolean, p: Boolean, c: Boolean) = minOf(width, byHeight(f, p, c), MAX_SCALE)
-            val footer = forceFooter || scale(true, false, false) >= goal
-            val place = footer && scale(true, true, false) >= goal
-            val circuit = place && scale(true, true, true) >= goal
-            return Fit(short, footer, place, circuit, scale(footer, place, circuit).coerceAtLeast(MIN_SCALE), rowWidth, h)
+            // Session table: name | day | time.
+            val full = names.maxOf { Measure.width(it, ROW) } + COL_GAP +
+                days.maxOf { Measure.width(it, ROW, medium = true) } + INNER_GAP + times.maxOf { Measure.width(it, ROW, medium = true) }
+            val short = full * scale * SLACK > rowWidth
+            fun fits(f: Boolean, p: Boolean, c: Boolean) = Fit(short, f, p, c, scale, rowWidth, h).rowsAt(scale) >= MAX_ROWS
+            val footer = forceFooter || fits(true, false, false)
+            val place = footer && fits(footer, true, false)
+            val circuit = place && fits(footer, true, true)
+            return Fit(short, footer, place, circuit, scale, rowWidth, h)
         }
 
         /** The widget's size in dp in the current orientation, slightly under to be safe. */
@@ -417,24 +428,43 @@ class RaceWidget : AppWidgetProvider() {
             size(R.id.place, SUB)
             size(R.id.mode, FOOT)
             size(R.id.round, FOOT)
-            NAMES.forEach { size(it, ROW) }
-            MIDS.forEach { size(it, ROW) }
-            TIMES.forEach { size(it, ROW) }
+            CELLS.forEach { cells -> cells.forEach { size(it, ROW) } }
         }
 
         /** Text metrics in dp, matching the layout's fonts (TextViews have no font padding). */
         private object Measure {
             private val regular = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create("sans-serif", Typeface.NORMAL) }
             private val medium = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+            private val mono = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.MONOSPACE }
 
-            private fun paint(size: Float, medium: Boolean) = (if (medium) this.medium else regular).apply { textSize = size }
-            fun width(text: String, size: Float, medium: Boolean = false) = paint(size, medium).measureText(text)
+            private fun paint(size: Float, medium: Boolean, mono: Boolean = false) =
+                (if (mono) this.mono else if (medium) this.medium else regular).apply { textSize = size }
+            fun width(text: String, size: Float, medium: Boolean = false, mono: Boolean = false) = paint(size, medium, mono).measureText(text)
             fun line(size: Float, medium: Boolean = false) = paint(size, medium).fontMetrics.let { it.descent - it.ascent }
-            fun row(r: Row) = width(r.left, ROW) + width(r.right, ROW, medium = true) +
-                if (r.mid.isEmpty()) 0f else width(r.mid, ROW) + COL_GAP
+
+            /** Height of a table row's text: the taller of the normal and monospace fonts. */
+            val rowLine get() = maxOf(line(ROW), paint(ROW, medium = false, mono = true).fontMetrics.let { it.descent - it.ascent })
+
+            /** Width of the table at scale 1: each shown column as wide as its widest cell, plus the layout's gaps. */
+            fun table(rows: List<Row>): Float {
+                fun col(get: (Row) -> String, medium: Boolean = false) = rows.maxOf { width(get(it), ROW, medium, it.mono) }
+                fun gap(w: Float, gap: Float) = if (w > 0) w + gap else 0f
+                return gap(col(Row::pos), INNER_GAP) + col(Row::name) + gap(col(Row::lap), COL_GAP + INNER_GAP) +
+                    gap(col(Row::day, medium = true), COL_GAP) + gap(col(Row::right, medium = true), INNER_GAP) +
+                    gap(col(Row::rpos, medium = true), INNER_GAP)
+            }
         }
 
-        private class Row(val left: String, val right: String, val leftColor: Int, val rightColor: Int, val mid: String = "")
+        /** One table row: [name] on the left, [right] (time or race result) on the right, optional other columns. */
+        private class Row(
+            val name: String, val nameColor: Int, val right: String, val rightColor: Int,
+            val pos: String = "", val lap: String = "", val day: String = "", val rpos: String = "",
+            val mono: Boolean = false, // results: monospace so codes, positions and lap times line up
+        )
+
+        private fun monospace(text: String) = SpannableString(text).apply {
+            setSpan(TypefaceSpan("monospace"), 0, length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+        }
 
         /** Re-render when the highlighted session changes (session start/end, race over). */
         private fun scheduleTick(ctx: Context, race: Race, now: Instant) {

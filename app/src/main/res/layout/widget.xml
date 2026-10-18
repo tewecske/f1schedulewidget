@@ -76,390 +76,703 @@
                     android:textSize="12dp" />
             </LinearLayout>
 
-                <!-- Sessions, or a header plus results (qualifying | lap time | race) for finished races. -->
+                <!-- Table of columns, so entries line up across rows (a row is the same index in every column).
+                     Cells wrap their text: a match_parent TextView doesn't relayout when its text shrinks,
+                     which would leave a column at an old, wider width.
+                     Sessions: name | day | time. Finished races: header plus results,
+                     position | qualifying | lap time | race | position, set in monospace by the code. -->
                 <LinearLayout
-                    android:id="@+id/row0"
+                    android:id="@+id/table"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name0"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid0"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time0"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
+                    android:orientation="horizontal">
 
-                <LinearLayout
-                    android:id="@+id/row1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name1"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid1"
+                    <LinearLayout
+                        android:id="@+id/col_pos"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
+                        android:layout_marginEnd="@dimen/inner_gap"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/pos0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/pos10"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                    </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/row2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name2"
+                    <LinearLayout
+                        android:id="@+id/col_name"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid2"
-                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/name0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/name10"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:ellipsize="end"
+                            android:textSize="13dp" />
+                    </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/row3"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name3"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid3"
+                    <LinearLayout
+                        android:id="@+id/col_lap"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
+                        android:layout_marginEnd="@dimen/inner_gap"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/lap0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                        <TextView
+                            android:id="@+id/lap10"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp" />
+                    </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/row4"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name4"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid4"
+                    <LinearLayout
+                        android:id="@+id/col_day"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time4"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/day0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/day10"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/row5"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name5"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid5"
+                    <LinearLayout
+                        android:id="@+id/col_time"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time5"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
+                        android:layout_marginStart="@dimen/inner_gap"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/time0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/time10"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/row6"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name6"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid6"
+                    <LinearLayout
+                        android:id="@+id/col_rpos"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time6"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/row7"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name7"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid7"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time7"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/row8"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name8"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid8"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time8"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/row9"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name9"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid9"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time9"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/row10"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingTop="@dimen/row_gap">
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/name10"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/mid10"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:maxLines="1"
-                        android:textSize="13dp"
-                        android:visibility="gone" />
-                    <TextView
-                        android:includeFontPadding="false"
-                        android:id="@+id/time10"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/col_gap"
-                        android:fontFamily="sans-serif-medium"
-                        android:maxLines="1"
-                        android:textSize="13dp" />
+                        android:layout_marginStart="@dimen/inner_gap"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/rpos0"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                        <TextView
+                            android:id="@+id/rpos10"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:paddingTop="@dimen/row_gap"
+                            android:textSize="13dp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
                 </LinearLayout>
 
             <!-- Spacer; plain View isn't allowed in widgets. -->
