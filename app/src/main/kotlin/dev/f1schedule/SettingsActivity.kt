@@ -123,7 +123,7 @@ class SettingsActivity : Activity() {
         // Preset colours; any other via the picker or hex.
         root.addView(LinearLayout(this).apply {
             gravity = Gravity.CENTER
-            setPadding(0, 8.dp, 0, 4.dp)
+            setPadding(0, 16.dp, 0, 4.dp)
             for (c in SWATCHES) addView(View(this@SettingsActivity).apply {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
