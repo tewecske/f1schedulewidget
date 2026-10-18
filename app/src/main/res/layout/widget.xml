@@ -76,6 +76,7 @@
                     android:textSize="12dp" />
             </LinearLayout>
 
+                <!-- Sessions, or a header plus results (qualifying | lap time | race) for finished races. -->
                 <LinearLayout
                     android:id="@+id/row0"
                     android:layout_width="match_parent"
@@ -91,6 +92,15 @@
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid0"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
                     <TextView
                         android:includeFontPadding="false"
                         android:id="@+id/time0"
@@ -119,6 +129,15 @@
                         android:textSize="13dp" />
                     <TextView
                         android:includeFontPadding="false"
+                        android:id="@+id/mid1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
                         android:id="@+id/time1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -143,6 +162,15 @@
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
                     <TextView
                         android:includeFontPadding="false"
                         android:id="@+id/time2"
@@ -171,6 +199,15 @@
                         android:textSize="13dp" />
                     <TextView
                         android:includeFontPadding="false"
+                        android:id="@+id/mid3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
                         android:id="@+id/time3"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -195,6 +232,15 @@
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid4"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
                     <TextView
                         android:includeFontPadding="false"
                         android:id="@+id/time4"
@@ -223,7 +269,191 @@
                         android:textSize="13dp" />
                     <TextView
                         android:includeFontPadding="false"
+                        android:id="@+id/mid5"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
                         android:id="@+id/time5"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:fontFamily="sans-serif-medium"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/row6"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="@dimen/row_gap">
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/name6"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid6"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/time6"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:fontFamily="sans-serif-medium"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/row7"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="@dimen/row_gap">
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/name7"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid7"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/time7"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:fontFamily="sans-serif-medium"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/row8"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="@dimen/row_gap">
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/name8"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid8"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/time8"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:fontFamily="sans-serif-medium"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/row9"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="@dimen/row_gap">
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/name9"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid9"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/time9"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:fontFamily="sans-serif-medium"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/row10"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="@dimen/row_gap">
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/name10"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textSize="13dp" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/mid10"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/col_gap"
+                        android:maxLines="1"
+                        android:textSize="13dp"
+                        android:visibility="gone" />
+                    <TextView
+                        android:includeFontPadding="false"
+                        android:id="@+id/time10"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/col_gap"

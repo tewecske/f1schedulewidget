@@ -1,6 +1,7 @@
 package dev.f1schedule
 
 import android.content.Context
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -27,16 +28,19 @@ class Race(
     val end: Instant get() = sessions.last().end
 }
 
-class Driver(val name: String, val code: String)
+/** [time]: best qualifying lap (in the last part reached), empty for race results. */
+class Driver(val name: String, val code: String, val time: String = "")
 
-/** Top 3 of qualifying and the race. */
-class Podium(val quali: List<Driver>, val race: List<Driver>)
+/** Top of qualifying and the race. */
+class Results(val quali: List<Driver>, val race: List<Driver>)
 
 /** Season data from the Jolpica F1 API (Ergast successor), cached in SharedPreferences. */
 object Schedule {
     private const val API = "https://api.jolpi.ca/ergast/f1/"
     private val MAX_AGE: Duration = Duration.ofHours(2)
-    private val PODIUM_RETRY: Duration = Duration.ofMinutes(10)
+    private val RESULTS_RETRY: Duration = Duration.ofMinutes(10)
+    /** Results kept per race: the points places. */
+    const val RESULT_ROWS = 10
 
     private class Kind(val key: String, val name: String, val short: String, val minutes: Long)
 
@@ -80,44 +84,48 @@ object Schedule {
         prefs(ctx).edit().putString("json", json).putLong("fetched", System.currentTimeMillis()).apply()
     }.isSuccess
 
-    fun podium(ctx: Context, race: Race): Podium? =
-        prefs(ctx).getString("podium_${race.season}_${race.round}", null)?.let { s ->
-            // "Name:CODE|...;Name:CODE|..." (older caches have no codes)
-            val (q, r) = s.split(";").map { part ->
-                part.split("|").filter(String::isNotEmpty).map {
-                    val name = it.substringBefore(":")
-                    Driver(name, it.substringAfter(":", name.take(3).uppercase()))
+    fun results(ctx: Context, race: Race): Results? =
+        prefs(ctx).getString("results_${race.season}_${race.round}", null)?.let { s ->
+            runCatching {
+                val o = JSONObject(s)
+                fun list(key: String) = o.getJSONArray(key).let { a ->
+                    (0 until a.length()).map { a.getJSONArray(it).let { d -> Driver(d.getString(0), d.getString(1), d.getString(2)) } }
                 }
-            }
-            Podium(q, r)
+                Results(list("q"), list("r"))
+            }.getOrNull()
         }
 
     /** Results appear some hours after a race; don't hammer the API until then. */
-    fun shouldFetchPodium(ctx: Context, race: Race): Boolean {
-        val tried = Instant.ofEpochMilli(prefs(ctx).getLong("podium_try_${race.season}_${race.round}", 0))
-        return tried + PODIUM_RETRY < Instant.now()
+    fun shouldFetchResults(ctx: Context, race: Race): Boolean {
+        val tried = Instant.ofEpochMilli(prefs(ctx).getLong("results_try_${race.season}_${race.round}", 0))
+        return tried + RESULTS_RETRY < Instant.now()
     }
 
-    /** Downloads top 3 of qualifying and race. Blocking; true once the race result is published. */
-    fun fetchPodium(ctx: Context, race: Race): Boolean = runCatching {
+    /** Downloads the top of qualifying and the race. Blocking; true once the race result is published. */
+    fun fetchResults(ctx: Context, race: Race): Boolean = runCatching {
         val key = "${race.season}_${race.round}"
-        prefs(ctx).edit().putLong("podium_try_$key", System.currentTimeMillis()).apply()
+        prefs(ctx).edit().putLong("results_try_$key", System.currentTimeMillis()).apply()
         val base = "$API${race.season}/${race.round}"
-        val result = top3(get("$base/results.json?limit=3"), "Results")
+        val result = top(get("$base/results.json?limit=$RESULT_ROWS"), "Results")
         if (result.isEmpty()) return false
-        val quali = runCatching { top3(get("$base/qualifying.json?limit=3"), "QualifyingResults") }.getOrDefault(emptyList())
-        fun enc(top: List<Driver>) = top.joinToString("|") { "${it.name}:${it.code}" }
-        prefs(ctx).edit().putString("podium_$key", enc(quali) + ";" + enc(result)).apply()
+        val quali = runCatching { top(get("$base/qualifying.json?limit=$RESULT_ROWS"), "QualifyingResults") }.getOrDefault(emptyList())
+        fun enc(top: List<Driver>) = JSONArray(top.map { JSONArray(listOf(it.name, it.code, it.time)) })
+        prefs(ctx).edit()
+            .putString("results_$key", JSONObject().put("q", enc(quali)).put("r", enc(result)).toString())
+            .remove("podium_$key").remove("podium_try_$key") // top 3 cache from older versions
+            .apply()
     }.isSuccess
 
-    private fun top3(json: String, key: String): List<Driver> {
+    private fun top(json: String, key: String): List<Driver> {
         val races = JSONObject(json).getJSONObject("MRData").getJSONObject("RaceTable").getJSONArray("Races")
         if (races.length() == 0) return emptyList()
         val rows = races.getJSONObject(0).getJSONArray(key)
-        return (0 until minOf(3, rows.length())).map {
-            val d = rows.getJSONObject(it).getJSONObject("Driver")
+        return (0 until minOf(RESULT_ROWS, rows.length())).map {
+            val row = rows.getJSONObject(it)
+            val d = row.getJSONObject("Driver")
             val name = d.getString("familyName")
-            Driver(name, d.optString("code").ifEmpty { name.take(3).uppercase() })
+            val time = listOf("Q3", "Q2", "Q1").firstNotNullOfOrNull { q -> row.optString(q).ifEmpty { null } } ?: ""
+            Driver(name, d.optString("code").ifEmpty { name.take(3).uppercase() }, time)
         }
     }
 
