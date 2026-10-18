@@ -64,7 +64,7 @@ class RaceWidget : AppWidgetProvider() {
     }
 
     override fun onDeleted(ctx: Context, ids: IntArray) {
-        state(ctx).edit().apply { ids.forEach { remove("off_$it"); remove("track_$it"); COLOR_KEYS.forEach { k -> remove("${k}_$it") } } }.apply()
+        state(ctx).edit().apply { ids.forEach { remove("off_$it"); remove("track_$it"); SETTING_KEYS.forEach { k -> remove("${k}_$it") } } }.apply()
     }
 
     override fun onDisabled(ctx: Context) {
@@ -92,6 +92,9 @@ class RaceWidget : AppWidgetProvider() {
 
     /** Colour settings (ARGB). Text colours are null when automatic. */
     class Colors(val bg: Int, val main: Int?, val past: Int?, val next: Int?)
+
+    /** Bottom row: shown even when it doesn't fit, and the date instead of the round on the right. */
+    class Footer(val always: Boolean, val date: Boolean)
 
     /** Resolved colours: background, main text, secondary text, finished sessions, highlighted session. */
     class Palette(val bg: Int, val text: Int, val sub: Int, val done: Int, val next: Int)
@@ -131,31 +134,40 @@ class RaceWidget : AppWidgetProvider() {
 
         private fun state(ctx: Context) = ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE)
 
-        private val COLOR_KEYS = listOf("bg", "main", "past", "next")
+        private val SETTING_KEYS = listOf("bg", "main", "past", "next", "footer", "footdate")
 
-        /** Colours of a widget, or the defaults for all widgets when [id] is invalid. */
-        fun colors(ctx: Context, id: Int): Colors {
+        /** A widget's own setting, else the default for all widgets; or only the default when [id] is invalid. */
+        private fun setting(ctx: Context, id: Int, key: String): Int? {
             val s = state(ctx)
-            fun get(key: String): Int? {
-                val own = "${key}_$id"
-                val k = if (id != AppWidgetManager.INVALID_APPWIDGET_ID && s.contains(own)) own else "${key}_default"
-                return if (s.contains(k)) s.getInt(k, 0) else null
-            }
-            return Colors(get("bg") ?: DEFAULT_BG, get("main"), get("past"), get("next"))
+            val own = "${key}_$id"
+            val k = if (id != AppWidgetManager.INVALID_APPWIDGET_ID && s.contains(own)) own else "${key}_default"
+            return if (s.contains(k)) s.getInt(k, 0) else null
         }
 
-        /** Sets one widget's colours, or the defaults for all widgets (dropping their own) when [id] is invalid. */
-        fun setColors(ctx: Context, id: Int, c: Colors) {
+        /** Sets one widget's settings, or the defaults for all widgets (dropping their own) when [id] is invalid. */
+        private fun putSettings(ctx: Context, id: Int, values: List<Pair<String, Int?>>) {
             val s = state(ctx)
             val all = id == AppWidgetManager.INVALID_APPWIDGET_ID
             s.edit().apply {
-                listOf("bg" to c.bg, "main" to c.main, "past" to c.past, "next" to c.next).forEach { (key, value) ->
+                values.forEach { (key, value) ->
                     if (all) s.all.keys.filter { it.startsWith("${key}_") }.forEach(::remove)
                     val k = if (all) "${key}_default" else "${key}_$id"
                     if (value == null) remove(k) else putInt(k, value)
                 }
             }.apply()
         }
+
+        fun colors(ctx: Context, id: Int) = Colors(
+            setting(ctx, id, "bg") ?: DEFAULT_BG, setting(ctx, id, "main"), setting(ctx, id, "past"), setting(ctx, id, "next"),
+        )
+
+        fun setColors(ctx: Context, id: Int, c: Colors) =
+            putSettings(ctx, id, listOf("bg" to c.bg, "main" to c.main, "past" to c.past, "next" to c.next))
+
+        fun footer(ctx: Context, id: Int) = Footer(setting(ctx, id, "footer") == 1, setting(ctx, id, "footdate") == 1)
+
+        fun setFooter(ctx: Context, id: Int, f: Footer) =
+            putSettings(ctx, id, listOf("footer" to if (f.always) 1 else 0, "footdate" to if (f.date) 1 else 0))
 
         /** Fills automatic text colours: dark on light backgrounds, light otherwise. */
         fun palette(c: Colors): Palette {
@@ -216,7 +228,8 @@ class RaceWidget : AppWidgetProvider() {
             )
             // Size for the largest weekend rather than what's shown, so text doesn't jump between races.
             val samples = (1..7).map { ZonedDateTime.of(2001, 1, it, 22, 59, 0, 0, ZoneId.systemDefault()).format(timeFmt) }
-            val fit = fit(mgr, id, samples)
+            val foot = footer(ctx, id)
+            val fit = fit(mgr, id, samples, foot.always)
             // Without the footer there's no toggle, so show local time.
             val track = fit.footer && state.getBoolean("track_$id", false)
             val zone = if (track) race.trackZone else ZoneId.systemDefault()
@@ -233,9 +246,11 @@ class RaceWidget : AppWidgetProvider() {
             val dates = if (first.month == last.month) "${first.dayOfMonth}–${last.format(dayFmt)}"
             else "${first.format(dayFmt)} – ${last.format(dayFmt)}"
             v.setTextViewText(R.id.circuit, race.circuit)
-            v.setTextViewText(R.id.place, "${race.city}, ${race.country}  ·  $dates")
+            // The date moves to the bottom row when chosen there.
+            val dateBelow = fit.footer && foot.date
+            v.setTextViewText(R.id.place, "${race.city}, ${race.country}" + if (dateBelow) "" else "  ·  $dates")
             v.setTextViewText(R.id.mode, if (track) "⇄ Track time" else "⇄ Local time")
-            v.setTextViewText(R.id.round, "Round ${race.round} / ${races.last().round}")
+            v.setTextViewText(R.id.round, if (dateBelow) dates else "Round ${race.round} / ${races.last().round}")
             v.setTextColor(R.id.round, if (index == upcoming) p.sub else p.next)
             v.setOnClickPendingIntent(R.id.mode, broadcast(ctx, ACTION_MODE, id))
 
@@ -293,9 +308,9 @@ class RaceWidget : AppWidgetProvider() {
         /**
          * Measures the content at scale 1 and picks the largest text that fits. Sessions come first;
          * then the footer, location and circuit lines are added in that order while they don't
-         * shrink the text (below normal size on big widgets).
+         * shrink the text (below normal size on big widgets). [forceFooter] keeps the footer regardless.
          */
-        private fun fit(mgr: AppWidgetManager, id: Int, timeSamples: List<String>): Fit {
+        private fun fit(mgr: AppWidgetManager, id: Int, timeSamples: List<String>, forceFooter: Boolean): Fit {
             val o = mgr.getAppWidgetOptions(id)
             val landscape = Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             // Launchers report the cell area; the widget itself gets less (Pixel: 360x358 reported, 316x300 real).
@@ -315,7 +330,7 @@ class RaceWidget : AppWidgetProvider() {
                 return (h - fixed) / text
             }
 
-            val base = byHeight(false, false, false)
+            val base = byHeight(forceFooter, false, false)
             val full = byWidth(false)
             val shortW = byWidth(true)
             // Full names unless they'd make the text noticeably smaller than normal (or than height allows).
@@ -323,7 +338,7 @@ class RaceWidget : AppWidgetProvider() {
             val width = if (short) shortW else full
             val goal = minOf(width, base, MAX_SCALE, 1f) * 0.98f
             fun scale(f: Boolean, p: Boolean, c: Boolean) = minOf(width, byHeight(f, p, c), MAX_SCALE)
-            val footer = scale(true, false, false) >= goal
+            val footer = forceFooter || scale(true, false, false) >= goal
             val place = footer && scale(true, true, false) >= goal
             val circuit = place && scale(true, true, true) >= goal
             return Fit(short, footer, place, circuit, scale(footer, place, circuit).coerceAtLeast(MIN_SCALE), rowWidth)

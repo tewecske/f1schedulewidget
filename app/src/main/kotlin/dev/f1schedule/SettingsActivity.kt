@@ -5,25 +5,28 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
-import android.graphics.Paint
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 
 /**
- * Background and text colours. From the widget's long-press menu (pencil) it edits that widget;
+ * Background and text colours, and the bottom row. From the widget's long-press menu (pencil) it edits that widget;
  * from the app drawer, which works on every launcher, it edits all widgets.
  */
 class SettingsActivity : Activity() {
@@ -46,6 +49,9 @@ class SettingsActivity : Activity() {
     private var picking = false
     private lateinit var opacity: TextView
     private lateinit var seek: SeekBar
+    private lateinit var always: CheckBox
+    private lateinit var round: RadioButton
+    private lateinit var date: RadioButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -151,6 +157,22 @@ class SettingsActivity : Activity() {
         }
         root.addView(seek)
 
+        // Bottom row: time switch on the left, round or date on the right.
+        val foot = RaceWidget.footer(this, widgetId)
+        always = CheckBox(this).apply {
+            text = "Always show bottom row"
+            isChecked = foot.always
+        }
+        root.addView(always, LinearLayout.LayoutParams(-2, -2).apply { topMargin = 12.dp })
+        round = RadioButton(this).apply { text = "Round"; id = View.generateViewId() }
+        date = RadioButton(this).apply { text = "Date"; id = View.generateViewId() }
+        root.addView(row(label("Bottom right").apply { setPadding(0, 0, 16.dp, 0) }, RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            addView(round)
+            addView(date)
+            check(if (foot.date) date.id else round.id)
+        }, weight = false))
+
         root.addView(LinearLayout(this).apply {
             gravity = Gravity.END
             setPadding(0, 12.dp, 0, 0)
@@ -159,12 +181,15 @@ class SettingsActivity : Activity() {
                 setOnClickListener {
                     load(RaceWidget.Colors(RaceWidget.DEFAULT_BG, null, null, null))
                     select(target)
+                    always.isChecked = false
+                    round.isChecked = true
                 }
             })
             addView(Button(this@SettingsActivity).apply {
                 text = "Save"
                 setOnClickListener {
                     RaceWidget.setColors(this@SettingsActivity, widgetId, colors())
+                    RaceWidget.setFooter(this@SettingsActivity, widgetId, RaceWidget.Footer(always.isChecked, date.isChecked))
                     RaceWidget.render(this@SettingsActivity)
                     finish()
                 }
